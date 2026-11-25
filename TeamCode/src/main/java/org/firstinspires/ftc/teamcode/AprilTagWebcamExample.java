@@ -24,17 +24,17 @@ public class AprilTagWebcamExample extends OpMode {
     public void loop() {
         aprilTagWebcam.updateVision();
 
-        // Automatically choose nearest blue or red cluster based on your alliance variable
+        // Automatically choose nearest scorable (not tipped) blue or red cluster based on your alliance variable
         AprilTagClusterDetection targetCluster = isBlueAlliance ?
-                aprilTagWebcam.getNearestBlueCluster() :
-                aprilTagWebcam.getNearestRedCluster();
+                aprilTagWebcam.getNearestScorableBlueCluster() :
+                aprilTagWebcam.getNearestScorableRedCluster();
 
         if (targetCluster != null) {
             aprilTagWebcam.displayTelemetry(targetCluster);
-            telemetry.addData("Target Locked", targetCluster.metadata.name);
+            telemetry.addData("Target Locked (Scorable)", targetCluster.metadata.name);
             telemetry.addData("Distance (cm)", "%6.1f", targetCluster.ftcPose.range);
         } else {
-            telemetry.addData("Cluster Status", (isBlueAlliance ? "Blue" : "Red") + " cluster not in view");
+            telemetry.addData("Cluster Status", (isBlueAlliance ? "Blue" : "Red") + " scorable cluster not in view");
         }
 
         telemetry.update();
