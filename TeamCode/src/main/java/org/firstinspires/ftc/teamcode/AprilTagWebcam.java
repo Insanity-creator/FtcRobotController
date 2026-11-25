@@ -16,7 +16,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 import java.util.ArrayList;
 import java.util.List;
 
-public class AprilTagTesting {
+public class AprilTagWebcam {
     private AprilTagProcessor aprilTagProcessor;
 
     private VisionPortal visionPortal;
@@ -46,11 +46,15 @@ public class AprilTagTesting {
 
     }
 
-    public void updateVision(){detectedTags = aprilTagProcessor.getDetections();}
+    public void updateVision(){
+        detectedTags = aprilTagProcessor.getDetections();
+    }
 
     public List<AprilTagDetection> getDetectedTags(){
         return detectedTags;
     }
+
+
     //checks if it's an april tag then checks if it's a cluster
     public List<AprilTagClusterDetection> getDetectedClusters(){
         List<AprilTagClusterDetection> clusters = new ArrayList<>();
@@ -77,14 +81,15 @@ public class AprilTagTesting {
             if(cluster.ftcPose == null){
                 continue;
             }
-            if(cluster.ftcPose.range < nearest.ftcPose.range || nearest == null){
+            // Check nearest == null FIRST to avoid NullPointerException
+            if(nearest == null || cluster.ftcPose.range < nearest.ftcPose.range){
                 nearest = cluster;
             }
         }
         return nearest;
     }
 
-    public void DisplayTelemetry(AprilTagClusterDetection cluster){
+    public void displayTelemetry(AprilTagClusterDetection cluster){
         if(cluster != null){
             telemetry.addLine(String.format("\n==== Tag Cluster (%s)", cluster.metadata.name));
             telemetry.addLine(String.format("Percent tags found: %d", cluster.percentClusterFound));
@@ -101,8 +106,29 @@ public class AprilTagTesting {
         }
     }
 
-    // TODO: create function for detecting blue clusters
-    // check if metadata first letter of name = B , alternate with red = R
+    public AprilTagClusterDetection getNearestBlueCluster() {
+        return getNearestClusterByKeyword("BLUE");
+    }
+
+    public AprilTagClusterDetection getNearestRedCluster() {
+        return getNearestClusterByKeyword("RED");
+    }
+
+    private AprilTagClusterDetection getNearestClusterByKeyword(String keyword) {
+        AprilTagClusterDetection nearest = null;
+        for (AprilTagClusterDetection cluster : getDetectedClusters()) {
+            if (cluster.metadata != null && cluster.metadata.name.contains(keyword)) {
+                if (cluster.ftcPose == null) {
+                    continue;
+                }
+                if (nearest == null || cluster.ftcPose.range < nearest.ftcPose.range) {
+                    nearest = cluster;
+                }
+            }
+        }
+        return nearest;
+    }
+
     // TODO: create function if it is scorable
     // check if ftcPose.roll is less than 90, add absolute value around roll
 }
