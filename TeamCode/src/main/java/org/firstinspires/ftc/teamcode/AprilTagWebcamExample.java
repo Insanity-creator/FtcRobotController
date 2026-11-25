@@ -1,6 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.robotcore.eventloop.opmode.Autonomous; // or TeleOp
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
 import org.firstinspires.ftc.vision.apriltag.AprilTagClusterDetection;
@@ -9,9 +9,13 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagClusterDetection;
 public class AprilTagWebcamExample extends OpMode {
     AprilTagWebcam aprilTagWebcam = new AprilTagWebcam();
 
+    // Set to true for Blue Alliance, false for Red Alliance
+    private boolean isBlueAlliance = true;
+
     @Override
     public void init() {
         aprilTagWebcam.init(hardwareMap, telemetry);
+        telemetry.addData("Alliance", isBlueAlliance ? "BLUE" : "RED");
         telemetry.addData("Status", "Initialized");
         telemetry.update();
     }
@@ -20,13 +24,17 @@ public class AprilTagWebcamExample extends OpMode {
     public void loop() {
         aprilTagWebcam.updateVision();
 
-        // Check for the Blue Scoring cluster
-        AprilTagClusterDetection blueScoringCluster = aprilTagWebcam.getClusterByName("BLUE SCORING");
+        // Automatically choose nearest blue or red cluster based on your alliance variable
+        AprilTagClusterDetection targetCluster = isBlueAlliance ?
+                aprilTagWebcam.getNearestBlueCluster() :
+                aprilTagWebcam.getNearestRedCluster();
 
-        if (blueScoringCluster != null) {
-            aprilTagWebcam.displayTelemetry(blueScoringCluster);
+        if (targetCluster != null) {
+            aprilTagWebcam.displayTelemetry(targetCluster);
+            telemetry.addData("Target Locked", targetCluster.metadata.name);
+            telemetry.addData("Distance (cm)", "%6.1f", targetCluster.ftcPose.range);
         } else {
-            telemetry.addData("Cluster Status", "Blue Scoring cluster not in view");
+            telemetry.addData("Cluster Status", (isBlueAlliance ? "Blue" : "Red") + " cluster not in view");
         }
 
         telemetry.update();
