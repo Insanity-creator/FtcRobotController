@@ -83,11 +83,26 @@ public class AprilTagWebcam {
     }
 
     /**
-     * Searches through detected clusters and returns the one matching a specific name (e.g., "BLUE SCORING").
+     * Corrects SDK cluster names to match your physical field tag layout.
+     */
+    public String getCorrectedClusterName(AprilTagClusterDetection cluster) {
+        if (cluster == null || cluster.metadata == null || cluster.metadata.name == null) {
+            return "";
+        }
+        String name = cluster.metadata.name;
+        if (name.equals("BLUE SCORING")) return "BLUE AUDIENCE";
+        if (name.equals("BLUE AUDIENCE")) return "BLUE SCORING";
+        if (name.equals("RED SCORING")) return "RED AUDIENCE";
+        if (name.equals("RED AUDIENCE")) return "RED SCORING";
+        return name;
+    }
+
+    /**
+     * Searches through detected clusters and returns the one matching a specific corrected name.
      */
     public AprilTagClusterDetection getClusterByName(String name) {
         for(AprilTagClusterDetection cluster: getDetectedClusters()){
-            if(cluster.metadata != null && name.equals(cluster.metadata.name)){
+            if(cluster.metadata != null && name.equals(getCorrectedClusterName(cluster))){
                 return cluster;
             }
         }
@@ -116,7 +131,7 @@ public class AprilTagWebcam {
      */
     public void displayTelemetry(AprilTagClusterDetection cluster){
         if(cluster != null){
-            telemetry.addLine(String.format("\n==== Tag Cluster (%s)", cluster.metadata.name));
+            telemetry.addLine(String.format("\n==== Tag Cluster (%s)", getCorrectedClusterName(cluster)));
             telemetry.addLine(String.format("Percent tags found: %d", cluster.percentClusterFound));
             telemetry.addLine(String.format("XYZ %6.1f %6.1f %6.1f  (inch)", cluster.ftcPose.x, cluster.ftcPose.y, cluster.ftcPose.z));
             telemetry.addLine(String.format("PRY %6.1f %6.1f %6.1f  (deg)", cluster.ftcPose.pitch, cluster.ftcPose.roll, cluster.ftcPose.yaw));
@@ -134,26 +149,26 @@ public class AprilTagWebcam {
     }
 
     /**
-     * Finds the nearest Blue alliance cluster ("BLUE SCORING" or "BLUE AUDIENCE").
+     * Finds the nearest Blue alliance cluster.
      */
     public AprilTagClusterDetection getNearestBlueCluster() {
         return getNearestClusterByKeyword("BLUE");
     }
 
     /**
-     * Finds the nearest Red alliance cluster ("RED SCORING" or "RED AUDIENCE").
+     * Finds the nearest Red alliance cluster.
      */
     public AprilTagClusterDetection getNearestRedCluster() {
         return getNearestClusterByKeyword("RED");
     }
 
     /**
-     * Helper method that finds the nearest cluster whose name contains a specific keyword ("BLUE" or "RED").
+     * Helper method that finds the nearest cluster matching a keyword ("BLUE" or "RED").
      */
     private AprilTagClusterDetection getNearestClusterByKeyword(String keyword) {
         AprilTagClusterDetection nearest = null;
         for (AprilTagClusterDetection cluster : getDetectedClusters()) {
-            if (cluster.metadata != null && cluster.metadata.name.contains(keyword)) {
+            if (cluster.metadata != null && getCorrectedClusterName(cluster).contains(keyword)) {
                 if (cluster.ftcPose == null) {
                     continue;
                 }
@@ -180,24 +195,74 @@ public class AprilTagWebcam {
         // Add the camera's upward offset to get the true field-relative pitch
         double fieldRelativePitch = cluster.ftcPose.pitch + CAMERA_PITCH_OFFSET;
 
-        // When upright, the tag rests pointing up/back (15° to 30°).
-        // When tipped, the pitch drops into a downward angle.
-        // It is scorable only when the field-relative pitch is above 0 degrees (pointing upward/level, not downward).
-        return fieldRelativePitch > 0.0;
+        // An upright basket rests pointing up/back (15° to 30°).
+        // When tipped, the pitch drops. We require at least 15° field-relative pitch to be scorable.
+        return fieldRelativePitch >= 15.0;
+    }
+
+    // Stores the currently locked target to prevent frame-by-frame flickering
+    private AprilTagClusterDetection currentLockedCluster = null;
+
+    /**
+     * Resets the target lock so the robot can re-evaluate and find a new nearest target.
+     */
+    public void resetTargetLock() {
+        currentLockedCluster = null;
     }
 
     /**
-     * Finds the nearest Blue cluster that is upright and scorable (not tipped).
+     * Finds the nearest Blue cluster that is upright and scorable (latched to prevent flickering).
      */
     public AprilTagClusterDetection getNearestScorableBlueCluster() {
-        return getNearestScorableClusterByKeyword("BLUE");
+        return getNearestScorableClusterByKeywordWithLock("BLUE");
     }
 
     /**
-     * Finds the nearest Red cluster that is upright and scorable (not tipped).
+     * Finds the nearest Red cluster that is upright and scorable (latched to prevent flickering).
      */
     public AprilTagClusterDetection getNearestScorableRedCluster() {
-        return getNearestScorableClusterByKeyword("RED");
+        return getNearestScorableClusterByKeywordWithLock("RED");
+    }
+
+    /**
+     * Helper method that keeps or updates the locked scorable cluster for a keyword ("BLUE" or "RED").
+     * Switches targets automatically if a new scorable target is significantly closer.
+     */
+    private AprilTagClusterDetection getNearestScorableClusterByKeywordWithLock(String keyword) {
+        // Find the absolute nearest valid scorable cluster in the current frame
+        AprilTagClusterDetection nearestNow = getNearestScorableClusterByKeyword(keyword);
+
+        if (nearestNow == null) {
+            currentLockedCluster = null;
+            return null;
+        }
+
+        // If no cluster was locked before, lock onto the nearest one now
+        if (currentLockedCluster == null) {
+            currentLockedCluster = nearestNow;
+            return currentLockedCluster;
+        }
+
+        // If a new scorable cluster appears that is significantly closer (e.g. 20cm closer), switch lock to it!
+        if (!getCorrectedClusterName(nearestNow).equals(getCorrectedClusterName(currentLockedCluster))
+                && (currentLockedCluster.ftcPose == null || nearestNow.ftcPose.range < currentLockedCluster.ftcPose.range - 20.0)) {
+            currentLockedCluster = nearestNow;
+            return currentLockedCluster;
+        }
+
+        // Otherwise, update currentLockedCluster pose with the new frame if still visible and scorable
+        for (AprilTagClusterDetection cluster : getDetectedClusters()) {
+            if (cluster.metadata != null && getCorrectedClusterName(cluster).equals(getCorrectedClusterName(currentLockedCluster))) {
+                if (isClusterScorable(cluster)) {
+                    currentLockedCluster = cluster;
+                    return currentLockedCluster;
+                }
+            }
+        }
+
+        // Fallback: if previous locked cluster is no longer scorable or visible, lock onto the nearest valid one
+        currentLockedCluster = nearestNow;
+        return currentLockedCluster;
     }
 
     /**
@@ -206,7 +271,7 @@ public class AprilTagWebcam {
     private AprilTagClusterDetection getNearestScorableClusterByKeyword(String keyword) {
         AprilTagClusterDetection nearest = null;
         for (AprilTagClusterDetection cluster : getDetectedClusters()) {
-            if (cluster.metadata != null && cluster.metadata.name.contains(keyword)) {
+            if (cluster.metadata != null && getCorrectedClusterName(cluster).contains(keyword)) {
                 if (isClusterScorable(cluster)) {
                     if (nearest == null || cluster.ftcPose.range < nearest.ftcPose.range) {
                         nearest = cluster;
