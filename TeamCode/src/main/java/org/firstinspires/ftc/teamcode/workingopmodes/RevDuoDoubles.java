@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.workingopmodes;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -7,47 +7,18 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 
-@TeleOp(name = "REVDuo_Solo")
-public class RevDuoSolo extends LinearOpMode {
+@TeleOp(name = "REVDuo_Doubles2026 (Blocks to Java)")
+public class RevDuoDoubles extends LinearOpMode {
 
+    private DcMotor intakeMotor;
     private DcMotor flywheel;
     private Servo flyGate;
-    private DcMotor intakeMotor;
     private DcMotor rightDrive;
     private Servo pollenServo;
     private VoltageSensor ControlHub_VoltageSensor;
     private DcMotor leftDrive;
 
     int targetVelocity;
-
-    /**
-     * This function contains the controls for the flywheel system.
-     */
-    private void flywheelControls() {
-        if (gamepad1.triangle) {
-            // Manual control for flywheel motor
-            ((DcMotorEx) flywheel).setVelocity(targetVelocity);
-        } else if (gamepad1.square) {
-            // Reverse flywheel
-            flywheel.setPower(-1);
-        } else if (gamepad1.left_bumper) {
-            ((DcMotorEx) flywheel).setVelocity(targetVelocity);
-            // Auto feed into flywheel if within a set velocity range
-            if (((DcMotorEx) flywheel).getVelocity() >= targetVelocity - 0 && ((DcMotorEx) flywheel).getVelocity() <= targetVelocity + 20) {
-                flyGate.setPosition(0.8);
-            }
-        } else if (gamepad1.dpad_up) {
-            // Manual control for feeder servo
-            flyGate.setPosition(0.8);
-        } else if (gamepad1.dpad_down) {
-            // Reverse feeder
-            flyGate.setPosition(0.8);
-        } else {
-            // Turn off servo and motor when gamepad is not active
-            flywheel.setPower(0);
-            flyGate.setPosition(0);
-        }
-    }
 
     /**
      * This function contains the controls for the intake system using the Core Hex.
@@ -64,19 +35,49 @@ public class RevDuoSolo extends LinearOpMode {
     }
 
     /**
-     * This sample contains the bare minimum Blocks for any regular OpMode. The 3 blue Comment
-     * Blocks show where to place Initialization code (runs once, after touching the DS INIT
-     * button, and before touching the DS Start arrow), Run code (runs once, after touching
-     * Start), and Loop code (runs repeatedly while the OpMode is active, namely not Stopped).
+     * This function contains the controls for the flywheel system.
+     */
+    private void flywheelControls() {
+        if (gamepad2.triangle) {
+            // Manual control for flywheel motor
+            ((DcMotorEx) flywheel).setVelocity(targetVelocity);
+        } else if (gamepad2.square) {
+            // Reverse flywheel
+            flywheel.setPower(-0.55);
+        } else if (gamepad2.left_bumper) {
+            ((DcMotorEx) flywheel).setVelocity(targetVelocity);
+            // Auto feed into flywheel if within a set velocity range
+            if (((DcMotorEx) flywheel).getVelocity() >= targetVelocity - 0 && ((DcMotorEx) flywheel).getVelocity() <= targetVelocity + 20) {
+                flyGate.setPosition(0.8);
+            }
+        } else if (gamepad2.dpad_up) {
+            // Manual control for feeder servo
+            flyGate.setPosition(0.8);
+        } else if (gamepad2.dpad_down) {
+            // Reverse feeder
+            flyGate.setPosition(0.8);
+        } else {
+            // Turn off servo and motor when gamepad is not active
+            flywheel.setPower(0);
+            flyGate.setPosition(0);
+        }
+    }
+
+    /**
+     * This sample contains the bare minimum Blocks for any regular OpMode. The 3 blue
+     * Comment Blocks show where to place Initialization code (runs once, after touching the
+     * DS INIT button, and before touching the DS Start arrow), Run code (runs once, after
+     * touching Start), and Loop code (runs repeatedly while the OpMode is active, namely not
+     * Stopped).
      */
     @Override
     public void runOpMode() {
         double kF;
         double batteryPercentage;
 
+        intakeMotor = hardwareMap.get(DcMotor.class, "intakeMotor");
         flywheel = hardwareMap.get(DcMotor.class, "flywheel");
         flyGate = hardwareMap.get(Servo.class, "flyGate");
-        intakeMotor = hardwareMap.get(DcMotor.class, "intakeMotor");
         rightDrive = hardwareMap.get(DcMotor.class, "rightDrive");
         pollenServo = hardwareMap.get(Servo.class, "pollenServo");
         ControlHub_VoltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");
@@ -94,14 +95,14 @@ public class RevDuoSolo extends LinearOpMode {
             // Loop for the OpMode containing the functions
             while (opModeIsActive()) {
                 kF = 19.2 * (12 / ControlHub_VoltageSensor.getVoltage());
-                ((DcMotorEx) flywheel).setVelocityPIDFCoefficients(80, 0, 0, kF);
+                ((DcMotorEx) flywheel).setVelocityPIDFCoefficients(80, 0, 1, kF);
                 intakeControls();
                 pollenPoker();
                 arcadeDrive();
                 flywheelControls();
                 // Allows for velocity to be seen on the Driver Station
-                batteryPercentage = ((ControlHub_VoltageSensor.getVoltage() - 11.5) / 2) * 100;
                 telemetry.addData("Flywheel Velocity", ((DcMotorEx) flywheel).getVelocity());
+                batteryPercentage = ((ControlHub_VoltageSensor.getVoltage() - 11.5) / 2) * 100;
                 telemetry.addData("Battery", Math.round(batteryPercentage));
                 telemetry.update();
             }
@@ -132,17 +133,16 @@ public class RevDuoSolo extends LinearOpMode {
         double rawRight;
         double maxPower;
 
-        // Arcade Drive on left stick
         x = gamepad1.left_stick_x;
         y = -gamepad1.left_stick_y;
-        if (gamepad1.left_stick_button) {
+        if (gamepad1.triangle) {
             // Slows Down to Aim if Pressed
             driveSpeed = 5;
         } else {
             // Normal Speed
-            driveSpeed = 12.5;
+            driveSpeed = 12.2;
         }
-        if (gamepad1.left_trigger_pressed) {
+        if (gamepad1.left_bumper || gamepad2.right_bumper) {
             // Joystick Pressed = Brake
             leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
             rightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);

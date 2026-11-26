@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode;
+package org.firstinspires.ftc.teamcode.workingopmodes;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -8,13 +8,13 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.VoltageSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@Autonomous(name = "REVDuo_Auto_Side20261 (Blocks to Java)", preselectTeleOp = "REVDuo_Doubles2026")
-public class RevDuoAutoSide extends LinearOpMode {
+@Autonomous(name = "REVDuo_Auto_Alternate2026 (Blocks to Java)", preselectTeleOp = "REVDuo_Doubles2026")
+public class RevDuoAutoAlternate extends LinearOpMode {
 
     private DcMotor rightDrive;
     private DcMotor flywheel;
-    private DcMotor leftDrive;
     private Servo pollenServo;
+    private DcMotor leftDrive;
     private VoltageSensor ControlHub_VoltageSensor;
     private DcMotor intakeMotor;
     private Servo flyGate;
@@ -22,10 +22,11 @@ public class RevDuoAutoSide extends LinearOpMode {
     double targetDriveSpeed;
 
     /**
-     * This sample contains the bare minimum Blocks for any regular OpMode. The 3 blue Comment
-     * Blocks show where to place Initialization code (runs once, after touching the DS INIT
-     * button, and before touching the DS Start arrow), Run code (runs once, after touching
-     * Start), and Loop code (runs repeatedly while the OpMode is active, namely not Stopped).
+     * This sample contains the bare minimum Blocks for any regular OpMode. The 3 blue
+     * Comment Blocks show where to place Initialization code (runs once, after touching the
+     * DS INIT button, and before touching the DS Start arrow), Run code (runs once, after
+     * touching Start), and Loop code (runs repeatedly while the OpMode is active, namely not
+     * Stopped).
      */
     @Override
     public void runOpMode() {
@@ -35,8 +36,8 @@ public class RevDuoAutoSide extends LinearOpMode {
 
         rightDrive = hardwareMap.get(DcMotor.class, "rightDrive");
         flywheel = hardwareMap.get(DcMotor.class, "flywheel");
-        leftDrive = hardwareMap.get(DcMotor.class, "leftDrive");
         pollenServo = hardwareMap.get(Servo.class, "pollenServo");
+        leftDrive = hardwareMap.get(DcMotor.class, "leftDrive");
         ControlHub_VoltageSensor = hardwareMap.get(VoltageSensor.class, "Control Hub");
         intakeMotor = hardwareMap.get(DcMotor.class, "intakeMotor");
         flyGate = hardwareMap.get(Servo.class, "flyGate");
@@ -45,8 +46,6 @@ public class RevDuoAutoSide extends LinearOpMode {
         rightDrive.setDirection(DcMotor.Direction.REVERSE);
         flywheel.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         flywheel.setDirection(DcMotor.Direction.REVERSE);
-        leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        rightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         targetVelocity = 1160;
         autoTimer = new ElapsedTime();
         waitForStart();
@@ -64,16 +63,17 @@ public class RevDuoAutoSide extends LinearOpMode {
             // Turn off drivetrain motors to prevent extra movement
             leftDrive.setPower(0);
             rightDrive.setPower(0);
+            sleep(10000);
             // Flywheel begins launch sequence for the preloaded pollen
             autoTimer.reset();
             // The flywheel is set to spin for 15 seconds.
-            while (autoTimer.seconds() <= 10 && opModeIsActive()) {
+            while (autoTimer.seconds() <= 8 && opModeIsActive()) {
                 ((DcMotorEx) flywheel).setVelocity(targetVelocity);
                 kF = 19.2 * (12 / ControlHub_VoltageSensor.getVoltage());
                 ((DcMotorEx) flywheel).setVelocityPIDFCoefficients(80, 0, 0, kF);
                 // The flywheel must be within a specified range of the target velocity for the intake and feeder servo to activate!
                 if (((DcMotorEx) flywheel).getVelocity() >= targetVelocity - 10 && ((DcMotorEx) flywheel).getVelocity() <= targetVelocity + 50) {
-                    intakeMotor.setPower(0.7);
+                    intakeMotor.setPower(1);
                     flyGate.setPosition(0.8);
                 } else {
                     // If the velocity is not within range, the intake and feeder servo turn off to prevent early feeding
@@ -84,12 +84,9 @@ public class RevDuoAutoSide extends LinearOpMode {
             ((DcMotorEx) flywheel).setVelocity(0);
             intakeMotor.setPower(0);
             flyGate.setPosition(0);
-            turnRightBackward(500);
-            goBackward(2400);
-            turnLeftBackward(500);
-            goBackward(5450);
-            turnRightBackward(500);
-            goBackward(1000);
+            goBackward(500);
+            turnLeftBackward(450);
+            goBackward(2900);
         }
     }
 
@@ -109,7 +106,7 @@ public class RevDuoAutoSide extends LinearOpMode {
     /**
      * Describe this function...
      */
-    private void turnRightBackward(int time2) {
+    private void turnRightBackward(long time2) {
         targetDriveSpeed = 1 * (12.5 / ControlHub_VoltageSensor.getVoltage());
         leftDrive.setPower(-0.5);
         rightDrive.setPower(0.5);
